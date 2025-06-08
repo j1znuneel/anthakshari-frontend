@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import axios from '@/lib/axios';
-import PlayerList from '@/components/PlayerList';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import axios from "@/lib/axios";
+import PlayerList from "@/components/PlayerList";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog';
-import { motion } from 'framer-motion';
-import { Users, MessageCircle } from 'lucide-react';
+} from "@/components/ui/dialog";
+import { motion } from "framer-motion";
+import { Users, MessageCircle } from "lucide-react";
 
 type Player = {
   id: string;
@@ -29,10 +29,11 @@ type Room = {
 
 export default function RoomPage() {
   const params = useParams();
-  const code = typeof params.code === 'string' ? params.code : params.code?.[0] || '';
+  const code =
+    typeof params.code === "string" ? params.code : params.code?.[0] || "";
 
   const [room, setRoom] = useState<Room | null>(null);
-  const [lastLetter, setLastLetter] = useState('');
+  const [lastLetter, setLastLetter] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchRoom = async () => {
@@ -40,7 +41,7 @@ export default function RoomPage() {
       const { data } = await axios.get<Room>(`api/room/${code}`);
       setRoom(data);
     } catch (error) {
-      console.error('Failed to fetch room:', error);
+      console.error("Failed to fetch room:", error);
     }
   };
 
@@ -53,14 +54,14 @@ export default function RoomPage() {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      await axios.post('api/room/submit', {
+      await axios.post("api/room/submit", {
         code,
         letter: lastLetter,
         playerId: room?.currentTurn,
       });
-      setLastLetter('');
+      setLastLetter("");
     } catch (error: any) {
-      alert(error?.response?.data?.error || 'Failed to submit');
+      alert(error?.response?.data?.error || "Failed to submit");
     } finally {
       setIsSubmitting(false);
     }
@@ -90,7 +91,11 @@ export default function RoomPage() {
           <div>
             <h1 className="text-2xl font-bold">Room Code: {room.code}</h1>
             <p className="text-muted-foreground mt-1">
-              Current Turn: <span className="font-medium text-primary">{room.currentTurn}</span>
+              Current Turn:{" "}
+              <span className="font-medium text-primary">
+                {room.players.find((player) => player.id === room.currentTurn)
+                  ?.name || "Unknown"}
+              </span>
             </p>
           </div>
 
@@ -113,8 +118,11 @@ export default function RoomPage() {
                   maxLength={1}
                   className="text-center uppercase tracking-wide text-lg"
                 />
-                <Button onClick={handleSubmit} disabled={isSubmitting || !lastLetter.trim()}>
-                  {isSubmitting ? 'Submitting...' : 'Submit'}
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || !lastLetter.trim()}
+                >
+                  {isSubmitting ? "Submitting..." : "Submit"}
                 </Button>
               </div>
             </DialogContent>
