@@ -6,7 +6,15 @@ import axios from '@/lib/axios';
 import PlayerList from '@/components/PlayerList';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { motion } from 'framer-motion';
+import { Users, MessageCircle } from 'lucide-react';
 
 type Player = {
   id: string;
@@ -48,8 +56,9 @@ export default function RoomPage() {
       await axios.post('api/room/submit', {
         code,
         letter: lastLetter,
-        playerId: room?.currentTurn, // assuming currentTurn holds player ID
+        playerId: room?.currentTurn,
       });
+      setLastLetter('');
     } catch (error: any) {
       alert(error?.response?.data?.error || 'Failed to submit');
     } finally {
@@ -57,32 +66,60 @@ export default function RoomPage() {
     }
   };
 
-  if (!room) return <div>Loading...</div>;
+  if (!room) return <div className="text-center p-10">Loading...</div>;
 
   return (
-    <div className="flex h-screen">
-      <aside className="w-1/4 p-4 border-r">
-        <h2 className="text-xl font-bold mb-4">Players</h2>
+    <div className="min-h-screen flex flex-col md:flex-row">
+      {/* Sidebar */}
+      <aside className="w-full md:w-1/4 border-b md:border-b-0 md:border-r bg-muted/20 p-6 space-y-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Users className="w-5 h-5 text-primary" />
+          <h2 className="text-lg font-semibold">Players</h2>
+        </div>
         <PlayerList players={room.players} currentTurn={room.currentTurn} />
       </aside>
-      <main className="flex-1 p-4">
-        <h2 className="text-xl font-bold mb-4">Room: {code}</h2>
-        <p>Current Turn: {room.currentTurn}</p>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>Submit Last Letter</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <Input
-              placeholder="Enter last letter"
-              value={lastLetter}
-              onChange={(e) => setLastLetter(e.target.value)}
-            />
-            <Button onClick={handleSubmit} disabled={isSubmitting}>
-              Submit
-            </Button>
-          </DialogContent>
-        </Dialog>
+
+      {/* Main */}
+      <main className="flex-1 p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="space-y-6"
+        >
+          <div>
+            <h1 className="text-2xl font-bold">Room Code: {room.code}</h1>
+            <p className="text-muted-foreground mt-1">
+              Current Turn: <span className="font-medium text-primary">{room.currentTurn}</span>
+            </p>
+          </div>
+
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button className="flex gap-2">
+                <MessageCircle className="w-4 h-4" />
+                Submit Last Letter
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Enter the last letter of your song</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <Input
+                  placeholder="e.g. A, M, N..."
+                  value={lastLetter}
+                  onChange={(e) => setLastLetter(e.target.value)}
+                  maxLength={1}
+                  className="text-center uppercase tracking-wide text-lg"
+                />
+                <Button onClick={handleSubmit} disabled={isSubmitting || !lastLetter.trim()}>
+                  {isSubmitting ? 'Submitting...' : 'Submit'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </motion.div>
       </main>
     </div>
   );
