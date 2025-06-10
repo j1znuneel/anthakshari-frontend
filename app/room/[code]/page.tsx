@@ -31,7 +31,10 @@ let socket: Socket;
 
 export default function RoomPage() {
   const params = useParams();
-  const code = typeof params.code === "string" ? params.code : params.code?.[0] || "";
+  const code =
+    typeof params.code === "string" ? params.code : params.code?.[0] || "";
+  const currentPlayerId =
+    typeof window !== "undefined" ? localStorage.getItem("playerId") : null;
 
   const [room, setRoom] = useState<Room | null>(null);
   const [lastLetter, setLastLetter] = useState("");
@@ -58,7 +61,7 @@ export default function RoomPage() {
   }, [code]);
 
   const handleSubmit = () => {
-    if (!room) return;
+    if (!room || room.currentTurn !== currentPlayerId) return;
     setIsSubmitting(true);
 
     socket.emit("submit-song", {
@@ -97,14 +100,21 @@ export default function RoomPage() {
             <p className="text-muted-foreground mt-1">
               Current Turn:{" "}
               <span className="font-medium text-primary">
-                {room.players.find((p) => p.id === room.currentTurn)?.name || "Unknown"}
+                {room.players.find((p) => p.id === room.currentTurn)?.name ||
+                  "Unknown"}
               </span>
             </p>
           </div>
 
           <Dialog>
             <DialogTrigger asChild>
-              <Button className="flex gap-2">
+              <Button
+                className="flex gap-2"
+                disabled={room.currentTurn !== currentPlayerId}
+                title={
+                  room.currentTurn !== currentPlayerId ? "Not your turn" : ""
+                }
+              >
                 <MessageCircle className="w-4 h-4" />
                 Submit Last Letter
               </Button>
