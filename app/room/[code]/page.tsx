@@ -39,6 +39,7 @@ export default function RoomPage() {
   const [room, setRoom] = useState<Room | null>(null);
   const [lastLetter, setLastLetter] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
     socket = io("http://localhost:3000");
@@ -60,20 +61,28 @@ export default function RoomPage() {
     };
   }, [code]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!room || room.currentTurn !== currentPlayerId) return;
+
     setIsSubmitting(true);
 
-    socket.emit("submit-song", {
-      code,
-      letter: lastLetter.trim().toUpperCase(),
-      playerId: room.currentTurn,
+    return new Promise<void>((resolve) => {
+      socket.emit(
+        "submit-song",
+        {
+          code,
+          letter: lastLetter.trim().toUpperCase(),
+          playerId: room.currentTurn,
+        },
+        () => {
+          // callback after server acknowledges
+          setIsSubmitting(false);
+          setLastLetter("");
+          resolve(); // let the caller know it's done
+        }
+      );
     });
-
-    setLastLetter("");
-    setIsSubmitting(false);
   };
-
   if (!room) return <div className="text-center p-10">Loading...</div>;
 
   return (
@@ -106,7 +115,7 @@ export default function RoomPage() {
             </p>
           </div>
 
-          <Dialog>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button
                 className="flex gap-2"
@@ -132,7 +141,10 @@ export default function RoomPage() {
                   className="text-center uppercase tracking-wide text-lg"
                 />
                 <Button
-                  onClick={handleSubmit}
+                  onClick={async () => {
+                    await handleSubmit();
+                    setIsDialogOpen(false); // only close after emit finishes
+                  }}
                   disabled={isSubmitting || !lastLetter.trim()}
                 >
                   {isSubmitting ? "Submitting..." : "Submit"}
