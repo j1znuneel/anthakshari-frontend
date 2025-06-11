@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import axios from "@/lib/axios";
 import PlayerList from "@/components/PlayerList";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { motion } from "framer-motion";
 import { Users, MessageCircle } from "lucide-react";
+import { io, Socket } from "socket.io-client";
 
 type Player = {
   id: string;
@@ -27,46 +27,62 @@ type Room = {
   players: Player[];
 };
 
+let socket: Socket;
+
 export default function RoomPage() {
   const params = useParams();
   const code =
     typeof params.code === "string" ? params.code : params.code?.[0] || "";
+  const currentPlayerId =
+    typeof window !== "undefined" ? localStorage.getItem("playerId") : null;
 
   const [room, setRoom] = useState<Room | null>(null);
   const [lastLetter, setLastLetter] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const fetchRoom = async () => {
-    try {
-      const { data } = await axios.get<Room>(`api/room/${code}`);
-      setRoom(data);
-    } catch (error) {
-      console.error("Failed to fetch room:", error);
-    }
-  };
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
-    fetchRoom();
-    const interval = setInterval(fetchRoom, 5000);
-    return () => clearInterval(interval);
+    socket = io("http://localhost:3000");
+
+    socket.on("connect", () => {
+      socket.emit("join-room", code);
+    });
+
+    socket.on("room-data", (updatedRoom: Room) => {
+      setRoom(updatedRoom);
+    });
+
+    socket.on("room-error", (msg: string) => {
+      console.error("Room error:", msg);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [code]);
 
   const handleSubmit = async () => {
-    setIsSubmitting(true);
-    try {
-      await axios.post("api/room/submit", {
-        code,
-        letter: lastLetter,
-        playerId: room?.currentTurn,
-      });
-      setLastLetter("");
-    } catch (error: any) {
-      alert(error?.response?.data?.error || "Failed to submit");
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    if (!room || room.currentTurn !== currentPlayerId) return;
 
+    setIsSubmitting(true);
+
+    return new Promise<void>((resolve) => {
+      socket.emit(
+        "submit-song",
+        {
+          code,
+          letter: lastLetter.trim().toUpperCase(),
+          playerId: room.currentTurn,
+        },
+        () => {
+          // callback after server acknowledges
+          setIsSubmitting(false);
+          setLastLetter("");
+          resolve(); // let the caller know it's done
+        }
+      );
+    });
+  };
   if (!room) return <div className="text-center p-10">Loading...</div>;
 
   return (
@@ -93,15 +109,21 @@ export default function RoomPage() {
             <p className="text-muted-foreground mt-1">
               Current Turn:{" "}
               <span className="font-medium text-primary">
-                {room.players.find((player) => player.id === room.currentTurn)
-                  ?.name || "Unknown"}
+                {room.players.find((p) => p.id === room.currentTurn)?.name ||
+                  "Unknown"}
               </span>
             </p>
           </div>
 
-          <Dialog>
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="flex gap-2">
+              <Button
+                className="flex gap-2"
+                disabled={room.currentTurn !== currentPlayerId}
+                title={
+                  room.currentTurn !== currentPlayerId ? "Not your turn" : ""
+                }
+              >
                 <MessageCircle className="w-4 h-4" />
                 Submit Last Letter
               </Button>
@@ -119,7 +141,10 @@ export default function RoomPage() {
                   className="text-center uppercase tracking-wide text-lg"
                 />
                 <Button
-                  onClick={handleSubmit}
+                  onClick={async () => {
+                    await handleSubmit();
+                    setIsDialogOpen(false); // only close after emit finishes
+                  }}
                   disabled={isSubmitting || !lastLetter.trim()}
                 >
                   {isSubmitting ? "Submitting..." : "Submit"}

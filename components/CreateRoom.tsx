@@ -55,7 +55,8 @@ export function CreateRoomForm() {
         name: values.playerName,
         turnTime: values.timePerTurn,
       });
-
+      
+      localStorage.setItem("playerId", res.data.playerId);
       router.push(`/room/${res.data.code}`);
     } catch (err: any) {
       alert(err.response?.data?.error || "Failed to create room");

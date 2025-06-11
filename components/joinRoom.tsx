@@ -54,10 +54,11 @@ export function JoinRoomForm() {
     setError(null);
 
     try {
-      await axios.post('/api/room/join', {
+      const res= await axios.post('/api/room/join', {
         name: values.playerName,
         code: values.roomCode.toUpperCase(),
       });
+      localStorage.setItem("playerId", res.data.playerId);
       router.push(`/room/${values.roomCode.toUpperCase()}`);
     } catch (err: any) {
       setError(err?.response?.data?.error || 'Failed to join room');
